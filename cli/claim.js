@@ -35,7 +35,7 @@ program
       if (res.ok) {
         console.log("Task claimed until: " + res.body.status.taken_until.bold);
         console.log(cliff.inspect(res.body));
-        state.runId     = res.body.status.run_id;
+        state.runId     = res.body.run_id;
         state.taskId    = res.body.status.task_id;
         state.logsUrl   = res.body.logs_url;
         state.resultUrl = res.body.result_url;

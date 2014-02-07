@@ -17,6 +17,13 @@ program
   // Load state, we'll need this for the request
   var state = utils.loadState();
 
+  // Test that specified file exists
+  var stat = fs.statSync(file);
+  if (!stat.isFile()) {
+    console.log(("No such file: " + file.bold).red);
+    process.exit(1);
+  }
+
   // Find mimetype of file to upload
   contentType = mime.lookup(file);
 
@@ -38,16 +45,15 @@ program
         console.log("Fetched signed S3 put URL from queue");
         var req = request
                     .put(res.body.artifact_urls[name])
-                    .set('Content-Type', contentType);
-        var stream = fs.createReadStream(file);
-        stream.pipe(req);
+                    .set('Content-Type',    contentType)
+                    .set('Content-Length',  stat.size)
+        fs.createReadStream(file).pipe(req, {end: false});
         req.end(function(res) {
+          console.log(res.status);
           if (res.ok) {
             console.log("Upload successful".bold);
-            console.log(cliff.inspect(res.body));
           } else {
-            console.log("Upload to signed url failed, errors:".bold.red);
-            console.log(cliff.inspect(res.body));
+            console.log("Upload to signed url failed".bold.red);
           }
         });
       } else {
