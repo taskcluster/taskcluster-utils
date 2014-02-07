@@ -16,7 +16,9 @@ program
   './fetch-task',
   './claim',
   './state',
-  './put-artifact'
+  './put-artifact',
+  './put-logs',
+  './put-result'
 ].forEach(function(module) {
   require(module);
 });
