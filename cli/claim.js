@@ -41,7 +41,7 @@ program
         state.resultUrl = res.body.result_url;
         utils.saveState(state);
       } else {
-        console.log("Failed to claim task, errors:".bold);
+        console.log("Failed to claim task, errors:".bold.red);
         console.log(cliff.inspect(res.body));
       }
     });

@@ -18,7 +18,9 @@ program
   './state',
   './put-artifact',
   './put-logs',
-  './put-result'
+  './put-result',
+  './listen',
+  './complete'
 ].forEach(function(module) {
   require(module);
 });
