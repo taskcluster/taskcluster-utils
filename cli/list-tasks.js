@@ -5,9 +5,6 @@ var cliff   = require('cliff');
 var nconf   = require('nconf');
 var utils   = require('./utils');
 
-var baseUrl = 'http://' + nconf.get('queue:hostname') + ':' +
-              nconf.get('queue:port');
-
 program
   .command('list-tasks <task-state>')
   .description("Lists tasks available for the configured provisioner-id")
@@ -26,14 +23,14 @@ program
 
   // Fetch list of task statues from server
   request
-    .get(baseUrl + '/0.2.0/pending-tasks/' + state.provisionerId)
+    .get(utils.queueUrl('/pending-tasks/' + state.provisionerId))
     .end(function(res) {
       if (res.ok) {
         if (options.json) {
           console.log(cliff.inspect(res.body));
         } else {
           console.log(cliff.stringifyObjectRows(res.body.tasks, [
-            'task_id', 'state', 'worker_type', 'routing'
+            'taskId', 'state', 'workerType', 'routing'
           ]));
         }
       } else {

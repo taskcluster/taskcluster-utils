@@ -17,28 +17,28 @@ program
   var state = utils.loadState();
 
   // If taskId isn't provided this is a reclaim
-  var run_id = undefined;
+  var runId = undefined;
   if (taskId === undefined) {
     taskId = state.taskId;
-    run_id = state.runId;
+    runId = state.runId;
   }
 
   // Fetch task from S3
   request
-    .post(baseUrl + '/0.2.0/task/' + taskId + '/claim')
+    .post(utils.queueUrl('/task/' + taskId + '/claim'))
     .send({
-      worker_group:     state.workerGroup,
-      worker_id:        state.workerId,
-      run_id:           run_id
+      workerGroup:      state.workerGroup,
+      workerId:         state.workerId,
+      runId:            runId
     })
     .end(function(res) {
       if (res.ok) {
-        console.log("Task claimed until: " + res.body.status.taken_until.bold);
+        console.log("Task claimed until: " + res.body.status.takenUntil.bold);
         console.log(cliff.inspect(res.body));
-        state.runId     = res.body.run_id;
-        state.taskId    = res.body.status.task_id;
-        state.logsUrl   = res.body.logs_url;
-        state.resultUrl = res.body.result_url;
+        state.runId     = res.body.runId;
+        state.taskId    = res.body.status.taskId;
+        state.logsUrl   = res.body.logsPutUrl;
+        state.resultUrl = res.body.resultPutUrl;
         utils.saveState(state);
       } else {
         console.log("Failed to claim task, errors:".bold.red);

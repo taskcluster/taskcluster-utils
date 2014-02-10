@@ -18,11 +18,11 @@ program
 
   // Fetch task from S3
   request
-    .post(baseUrl + '/0.2.0/task/' + state.taskId + '/completed')
+    .post(utils.queueUrl('/task/' + state.taskId + '/completed'))
     .send({
-      worker_group:     state.workerGroup,
-      worker_id:        state.workerId,
-      run_id:           state.runId
+      workerGroup:      state.workerGroup,
+      workerId:         state.workerId,
+      runId:            state.runId
     })
     .end(function(res) {
       if (res.ok) {

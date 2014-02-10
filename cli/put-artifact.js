@@ -6,9 +6,6 @@ var nconf   = require('nconf');
 var mime    = require('mime')
 var utils   = require('./utils');
 
-var baseUrl = 'http://' + nconf.get('queue:hostname') + ':' +
-              nconf.get('queue:port');
-
 program
   .command('put-artifact <name> <file>')
   .description("Put an artifact for run-id and task-id in state.json")
@@ -29,15 +26,17 @@ program
 
   // Create artifacts map to submit
   var artifacts = {};
-  artifacts[name] = contentType;
+  artifacts[name] = {
+    contentType:       contentType
+  };
 
   // Fetch task from S3
   request
-    .post(baseUrl + '/0.2.0/task/' + state.taskId + '/artifact-urls')
+    .post(utils.queueUrl('/task/' + state.taskId + '/artifact-urls'))
     .send({
-      worker_group:     state.workerGroup,
-      worker_id:        state.workerId,
-      run_id:           state.runId,
+      workerGroup:      state.workerGroup,
+      workerId:         state.workerId,
+      runId:            state.runId,
       artifacts:        artifacts
     })
     .end(function(res) {

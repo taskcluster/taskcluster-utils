@@ -9,17 +9,17 @@ program
   .command('fetch-task [task-id]')
   .description("Fetch task definition")
   .option('-d, --dump [FILE]', "Write task definition to file")
-  .action(function(task_id, options) {
+  .action(function(taskId, options) {
 
   // Load state if task-id isn't provided
-  if (task_id === undefined) {
+  if (taskId === undefined) {
     var state = utils.loadState();
-    task_id = state.taskId;
+    taskId = state.taskId;
   }
 
   // Fetch task from S3
   request
-    .get('http://tasks.taskcluster.net/' + task_id + '/task.json')
+    .get('http://tasks.taskcluster.net/' + taskId + '/task.json')
     .end(function(res) {
       if (res.ok) {
         console.log(cliff.inspect(res.body));
