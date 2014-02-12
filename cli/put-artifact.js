@@ -43,7 +43,7 @@ program
       if (res.ok) {
         console.log("Fetched signed S3 put URL from queue");
         var req = request
-                    .put(res.body.artifact_urls[name])
+                    .put(res.body.artifactPutUrls[name])
                     .set('Content-Type',    contentType)
                     .set('Content-Length',  stat.size)
         fs.createReadStream(file).pipe(req, {end: false});
