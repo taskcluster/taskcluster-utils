@@ -27,7 +27,7 @@ var processTask = function(worker) {
     // Start worker process
     var process = spawn(
       task.payload.command,
-      task.payload.arguments
+      task.payload.arguments,
       {stdio: ['ignore', stdout, stderr]}
     );
 
@@ -94,24 +94,23 @@ var processTask = function(worker) {
   });
 };
 
-
 /**
  * Start a task processing look, return a promise that fails, when the loop
  * ends due to missing tasks or errors
  */
-var processLoop = function(worker) {
-  // Number of failures allowed before the worker should exit
-  var failures_allowed = 5;
+var processLoop = function(worker, allowed_failures) {
+  debug("Starting task processing loop");
 
   // Number of failures left before the worker should exit
-  var failures_left = failures_allowed;
+  var failures_left = allowed_failures;
 
   // Promise that loop will event eventually
   return new Promise(function(accept, reject) {
     var iterate = function() {
+      debug("New task processing iteration");
       processTask(worker).then(function() {
         debug('Successfully processed a task');
-        failures_left = failures_allowed;
+        failures_left = allowed_failures;
         iterate();
       }, function(err) {
         debug('Failed to process task, error: %s, as JSON: %j', err, err);
@@ -123,43 +122,69 @@ var processLoop = function(worker) {
         }
       });
     };
+    // Start first loop iteration
+    iterate();
   });
 };
 
 program
   .command('start')
   .description("Create a simple AWS worker")
-  .option('--provisioner-id',   "provisionerId, defaults 'aws-provisioner'")
-  .option('--worker-type',      "workerType, defaults to instance-type + AMI image")
-  .option('--worker-group',     "workerGroup, defaults to availability zone")
-  .option('--worker-id',        "workerId, defaults to instance id")
-  .option('-s, --shutdown', "Shutdown the machine when this process ends")
+  .option(
+    '--provisioner-id <provisioner-id>',
+    "provisionerId, defaults 'aws-provisioner'"
+  )
+  .option(
+    '--worker-type <worker-type>',
+    "workerType, defaults to instance-type + AMI image"
+  )
+  .option(
+    '--worker-group <worker-group>',
+    "workerGroup, defaults to availability zone"
+  )
+  .option(
+    '--worker-id <worker-id>',
+    "workerId, defaults to instance id"
+  )
+  .option(
+    '-s, --shutdown',
+    "Shutdown the machine when this process ends"
+  )
+  .option(
+    '-n, --allowed-failures <N>',
+    "Number of failures before task processing loop is killed"
+  )
   .action(function(options) {
     // Load configuration
     config.load();
 
+    // If not specified, allow for 5 failures
+    if (options.allowedFailures === undefined) {
+      options.allowedFailures = 5;
+    }
+
     // Provide default provisionerId
-    if (!options.provisionerId) {
+    if (options.provisionerId === undefined) {
       options.provisionerId = 'aws-provisioner';
     }
 
     // Provide default workerType
-    if (!options.workerType) {
+    if (options.workerType === undefined) {
       options.workerType = Promise.all(
-        metadata.getInstanceType();
-        metadata.getImageId();
+        metadata.getInstanceType(),
+        metadata.getImageId()
       ).spread(function(instanceType, imageId) {
         return instanceType.replace('.', '-') + '_' + imageId;
       });
     }
 
     // Provide default workerGroup
-    if (!options.workerGroup) {
+    if (options.workerGroup === undefined) {
       options.workerGroup = metadata.getAvailabilityZone();
     }
 
     // Provide default workerId
-    if (!options.workerId) {
+    if (options.workerId === undefined) {
       options.workerId = metadata.getInstanceId();
     }
 
@@ -170,7 +195,7 @@ program
       options.workerGroup,
       options.workerId
     ).spread(function(provisionerId, workerType, workerGroup, workerId) {
-      return Worker({
+      return new Worker({
         provisionerId:    provisionerId,
         workerType:       workerType,
         workerGroup:      workerGroup,
@@ -181,9 +206,18 @@ program
     // When worker is created, it's time to start the process loop
     worker_created.then(function(worker) {
       // wait for process loop to break and exit and possibly shutdown
-      processLoop(worker).then(undefined, function() {
-        spawn('sudo', ['shutdown', '-h', 'now']);
-        process.exit(1);
+      processLoop(worker, options.allowedFailures).then(undefined, function(err) {
+        debug("Worker ended with error: %s, as JSON: %j", err, err);
+        if (options.shutdown) {
+          spawn('sudo', ['shutdown', '-h', 'now']);
+        }
+        process.exit(0);
       });
+    }).then(undefined, function(err) {
+      debug("Initialization failed, error: %s, as JSON: %j", err, err);
+      process.exit(1);
     });
   });
+
+// Run program with command line arguments
+program.parse(process.argv);
