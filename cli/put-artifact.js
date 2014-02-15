@@ -30,7 +30,7 @@ program
     contentType:       contentType
   };
 
-  // Fetch task from S3
+  // Request artifact put urls
   request
     .post(utils.queueUrl('/task/' + state.taskId + '/artifact-urls'))
     .send({
