@@ -4,6 +4,7 @@ var Worker        = require('./lib/worker');
 var metadata      = require('./lib/aws-metadata');
 var spawn         = require('child_process').spawn;
 var debug         = require('debug')('aws-worker');
+var config        = require('./config');
 
 require('./utils/spread-promise').patch();
 
@@ -134,6 +135,9 @@ program
   .option('--worker-id',        "workerId, defaults to instance id")
   .option('-s, --shutdown', "Shutdown the machine when this process ends")
   .action(function(options) {
+    // Load configuration
+    config.load();
+
     // Provide default provisionerId
     if (!options.provisionerId) {
       options.provisionerId = 'aws-provisioner';
@@ -167,10 +171,10 @@ program
       options.workerId
     ).spread(function(provisionerId, workerType, workerGroup, workerId) {
       return Worker({
-        provisionerId:    'jonasfj-test-provisioner',
-        workerType:       'jonasfj-test-worker-type',
-        workerGroup:      'jonasfj-test-group',
-        workerId:         'jonasfj-test-worker'
+        provisionerId:    provisionerId,
+        workerType:       workerType,
+        workerGroup:      workerGroup,
+        workerId:         workerId
       });
     });
 
