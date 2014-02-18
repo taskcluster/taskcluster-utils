@@ -1,5 +1,6 @@
 var program       = require('commander');
 var Promise       = require('promise');
+var fs            = require('fs');
 var Worker        = require('./lib/worker');
 var metadata      = require('./lib/aws-metadata');
 var spawn         = require('child_process').spawn;
@@ -8,56 +9,82 @@ var config        = require('./config');
 
 require('./utils/spread-promise').patch();
 
+var claim_work_attempts = 5;
+var claim_work_delay    = 30 * 1000;
+
 /** Process a task with the worker */
 var processTask = function(worker) {
   // Claim work
   var started = null;
   var finished = null;
-  return worker.claimWork().then(new Promise(function(accept, reject) {
-    // Get task definition
-    var task = worker.task();
-
-    // Create some log files
-    var stdout = fs.openSync('stdout.log', 'w');
-    var stderr = fs.openSync('stderr.log', 'w');
-
-    // Set time at which task started
-    started = new Date();
-
-    // Start worker process
-    var process = spawn(
-      task.payload.command,
-      task.payload.arguments,
-      {stdio: ['ignore', stdout, stderr]}
-    );
-
-    // Keep tasks, and tell it to kill the process if reclaiming the task fails
-    var aborted = false;
-    worker.keepTask(function() {
-      aborted = true;
-      process.kill();
-    });
-
-    // When process is completed we are done
-    process.on('close', function(exitcode) {
-      // Set time as which task finished
-      finished = new Date();
-
-      // First close stdout and stderr handles
-      fs.closeSync(stdout);
-      fs.closeSync(stderr);
-
-      if (aborted) {
-        // If this process was aborted due to reclaim failures, we don't report
-        // task as completed
-        reject(new Error("Reclaim failed, task aborted!"));
-      } else {
-        // Otherwise we completed the task
-        accept(exitcode);
+  var retries = claim_work_attempts;
+  var handler = function(claimedTask) {
+    if(!claimedTask) {
+      if (retries > 0) {
+        retries--;
+        debug("claimWork found no available tasks");
+        return new Promise(function(accept, reject) {
+          setTimeout(function() {
+            worker.claimWork().then(accept, reject);
+          }, claim_work_delay);
+        }).then(handler);
       }
-    });
+      throw new Error("No tasks available");
+    }
+    return true;
+  };
 
-  })).then(function(exitcode) {
+  return worker.claimWork().then(handler).then(function() {
+    return new Promise(function(accept, reject) {
+      // Get task definition
+      var task = worker.task();
+
+      // Create some log files
+      debug("Creating log files");
+      var stdout = fs.openSync('stdout.log', 'w');
+      var stderr = fs.openSync('stderr.log', 'w');
+
+      // Set time at which task started
+      started = new Date();
+
+      // Start worker process
+      debug("Starting task subprocess")
+      var process = spawn(
+        task.payload.command,
+        task.payload.arguments,
+        {stdio: ['ignore', stdout, stderr]}
+      );
+
+      // Keep tasks, and tell it to kill the process if reclaiming the task fails
+      var aborted = false;
+      worker.keepTask(function() {
+        aborted = true;
+        process.kill();
+      });
+
+      // When process is completed we are done
+      process.on('close', function(exitcode) {
+        debug("Task subprocess exited %s", exitcode);
+
+        // Set time as which task finished
+        finished = new Date();
+
+        // First close stdout and stderr handles
+        fs.closeSync(stdout);
+        fs.closeSync(stderr);
+
+        if (aborted) {
+          // If this process was aborted due to reclaim failures, we don't report
+          // task as completed
+          reject(new Error("Reclaim failed, task aborted!"));
+        } else {
+          // Otherwise we completed the task
+          accept(exitcode);
+        }
+      });
+    });
+  }).then(function(exitcode) {
+    debug("Uploading log artifacts, exitcode: %s", exitcode)
     // First upload logs as artifacts
     return Promise.all(
       worker.putArtifact('stdout.log', 'stdout.log', 'plain/text'),
@@ -66,7 +93,11 @@ var processTask = function(worker) {
       // Then upload logs and result
       return Promise.all(
         worker.putLogs({
-
+          version:            '0.2.0',
+          logs: {
+            "stdout.log":     stdoutUrl,
+            "stderr.log":     stderrUrl
+          }
         }),
         worker.putResult({
           version:            '0.2.0',
