@@ -109,7 +109,7 @@ var processTask = function(worker) {
             started:          started.toJSON(),
             finished:         finished.toJSON()
           },
-          worker: {
+          metadata: {
             workerGroup:      worker.options.workerGroup,
             workerId:         worker.options.workerId
           },
