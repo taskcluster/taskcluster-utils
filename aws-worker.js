@@ -201,12 +201,16 @@ program
 
     // Provide default workerType
     if (options.workerType === undefined) {
-      options.workerType = Promise.all(
-        metadata.getInstanceType(),
-        metadata.getImageId()
-      ).spread(function(instanceType, imageId) {
-        return instanceType.replace('.', '-') + '_' + imageId;
-      });
+      // Default worker type as `<instance-type>_<image-id>`
+      options.workerType = metadata.getImageId();
+      // Default worker type as `<instance-type>_<image-id>`, for future
+      // provisioner implementation
+      // options.workerType = Promise.all(
+      //   metadata.getInstanceType(),
+      //   metadata.getImageId()
+      // ).spread(function(instanceType, imageId) {
+      //   return instanceType.replace('.', '-') + '_' + imageId;
+      // });
     }
 
     // Provide default workerGroup
