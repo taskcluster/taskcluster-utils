@@ -3,6 +3,8 @@ var cliff     = require('cliff');
 var nconf     = require('nconf');
 var amqp      = require('amqp');
 var Promise   = require('promise');
+var request   = require('superagent');
+var utils   = require('./utils');
 
 program
   .command('listen <pending|running|completed|failed>')
@@ -26,9 +28,19 @@ program
     // Create a connection
     var conn = null;
     var connected = new Promise(function(accept, reject) {
-      // Create connection
-      conn = amqp.createConnection(nconf.get('amqp'));
-      conn.on('ready', accept);
+      request
+        .get(utils.queueUrl('/settings/amqp-connection-string'))
+        .end(function(res) {
+          if (res.ok) {
+            // Create connection
+            conn = amqp.createConnection({
+              url:            res.body.url
+            });
+            conn.on('ready', accept);
+          } else {
+            reject(res.body);
+          }
+        });
     });
 
     connected.then(function() {

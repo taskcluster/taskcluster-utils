@@ -16,35 +16,6 @@ var DEFAULT_CONFIG_VALUES = {
 
     // Port to run the HTTP server on
     'port':                         3000
-  },
-
-  // AMQP configuration as given to `amqp.createConnection`
-  // See: https://github.com/postwait/node-amqp#connection-options-and-url
-  'amqp': {
-    // AMQP hostname
-    'host':                         'localhost',
-
-    // AMQP port
-    'port':                         5672,
-
-    // AMQP user
-    'login':                        'guest',
-
-    // AMQP password
-    'password':                     'guest',
-
-    // AMQP authentication mechanism
-    'authMechanism':                'AMQPLAIN',
-
-    // AMQP virtual host
-    'vhost':                        '/',
-
-    // Use SSL, keys are required to enable this, refer to node-amqp
-    // documentation for details, see:
-    // https://github.com/postwait/node-amqp#connection-options-and-url
-    'ssl': {
-      'enable':                     false
-    }
   }
 };
 
